@@ -17,6 +17,13 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+            $table->enum('role', ['superadmin', 'agen', 'user'])->default('user')->after('email');
+            $table->enum('status', ['active', 'suspended'])->default('active')->after('role');
+              // Kalau user ini didaftarkan/dinaungi oleh agen tertentu
+            $table->foreignId('parent_agent_id')->nullable()->after('status')
+                ->constrained('users')->nullOnDelete();
+ 
+            $table->string('phone')->nullable()->after('parent_agent_id');
             $table->rememberToken();
             $table->timestamps();
         });
