@@ -17,7 +17,7 @@ class RouteServiceProvider extends ServiceProvider
      *
      * @var string
      */
-    public const HOME = '/home';
+    public const HOME = '/dashboard';
 
     /**
      * Define your route model bindings, pattern filters, and other route configuration.
@@ -27,6 +27,22 @@ class RouteServiceProvider extends ServiceProvider
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
         });
+
+        RateLimiter::for('login', function (Request $request) {
+            $email = (string) $request->input('email');
+
+            return Limit::perMinute(6)->by($email . '|' . $request->ip());
+        });
+
+        /*
+     * Limiter khusus registrasi.
+     *
+     * Mencegah spam pembuatan akun dari satu IP.
+     */
+        RateLimiter::for('register', function (Request $request) {
+            return Limit::perMinute(5)->by($request->ip());
+        });
+
 
         $this->routes(function () {
             Route::middleware('api')

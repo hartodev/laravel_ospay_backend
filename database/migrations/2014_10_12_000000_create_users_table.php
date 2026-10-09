@@ -6,32 +6,74 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
+
             $table->string('name');
-            $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
+
+            $table->string('email')
+                ->unique();
+
+            $table->timestamp('email_verified_at')
+                ->nullable();
+
             $table->string('password');
-            $table->enum('role', ['superadmin', 'agen', 'user'])->default('user')->after('email');
-            $table->enum('status', ['active', 'suspended'])->default('active')->after('role');
-              // Kalau user ini didaftarkan/dinaungi oleh agen tertentu
-            $table->foreignId('parent_agent_id')->nullable()->after('status')
-                ->constrained('users')->nullOnDelete();
- 
-            $table->string('phone')->nullable()->after('parent_agent_id');
+
+            /*
+             * ========================================================
+             * ROLE
+             * ========================================================
+             */
+            $table->enum('role', [
+                'superadmin',
+                'agen',
+                'user',
+            ])->default('user');
+
+            /*
+             * ========================================================
+             * ACCOUNT STATUS
+             * ========================================================
+             *
+             * user:
+             *   active
+             *
+             * agen:
+             *   pending → active → suspended
+             *
+             * superadmin:
+             *   active
+             */
+            $table->enum('status', [
+                'pending',
+                'active',
+                'suspended',
+            ])->default('active');
+
+            /*
+             * ========================================================
+             * PARENT AGENT
+             * ========================================================
+             *
+             * Kalau user didaftarkan oleh agen,
+             * user dapat parent_agent_id.
+             */
+            $table->foreignId('parent_agent_id')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            $table->string('phone')
+                ->nullable();
+
             $table->rememberToken();
+
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('users');

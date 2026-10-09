@@ -6,25 +6,39 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('wallets', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->unique()->constrained()->cascadeOnDelete();
- 
-            // Simpan dalam rupiah bulat (integer), jangan pakai decimal/float untuk uang
-            $table->bigInteger('balance')->default(0);
-            $table->bigInteger('held_balance')->default(0); // saldo yang sedang di-hold saat transaksi diproses
+
+            /*
+             * Satu user hanya boleh mempunyai satu wallet.
+             *
+             * Dalam business rule kita:
+             * wallet hanya untuk agen.
+             */
+            $table->foreignId('user_id')
+                ->unique()
+                ->constrained('users')
+                ->cascadeOnDelete();
+
+            /*
+             * Total saldo milik agen.
+             */
+            $table->unsignedBigInteger('balance')
+                ->default(0);
+
+            /*
+             * Saldo yang sedang ditahan
+             * untuk transaksi IAK pending.
+             */
+            $table->unsignedBigInteger('held_balance')
+                ->default(0);
+
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('wallets');

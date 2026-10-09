@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-use App\Models\Wallet;
+use App\Models\Wallets;
 
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -25,8 +25,8 @@ class UserSeeder extends Seeder
                 'status' => 'active',
             ]
         );
-        Wallet::firstOrCreate(['user_id' => $superadmin->id], ['balance' => 0]);
- 
+        Wallets::firstOrCreate(['user_id' => $superadmin->id], ['balance' => 0]);
+
         $agen = User::firstOrCreate(
             ['email' => 'agen@ppob.test'],
             [
@@ -36,8 +36,26 @@ class UserSeeder extends Seeder
                 'status' => 'active',
             ]
         );
-        Wallet::firstOrCreate(['user_id' => $agen->id], ['balance' => 0]);
- 
+        Wallets::firstOrCreate(['user_id' => $agen->id], ['balance' => 0]);
+
+        // Subdomain toko untuk agen contoh: agen.<domain-utama>
+        if (! $agen->subdomain) {
+            $agen->forceFill(['subdomain' => 'agen'])->save();
+        }
+
+        // User contoh yang berada di bawah toko "agen"
+        $member = User::firstOrCreate(
+            ['email' => 'member@ppob.test'],
+            [
+                'name' => 'Member Toko Agen',
+                'password' => Hash::make('password'),
+                'role' => 'user',
+                'status' => 'active',
+                'parent_agent_id' => $agen->id,
+            ]
+        );
+        Wallets::firstOrCreate(['user_id' => $member->id], ['balance' => 0]);
+
         $user = User::firstOrCreate(
             ['email' => 'user@ppob.test'],
             [
@@ -46,9 +64,9 @@ class UserSeeder extends Seeder
                 'role' => 'user',
                 'status' => 'active',
                 // contoh: user ini dinaungi agen di atas
-                'parent_agent_id' => $agen->id,
+                // 'parent_agent_id' => $agen->id,
             ]
         );
-        Wallet::firstOrCreate(['user_id' => $user->id], ['balance' => 0]);
+        Wallets::firstOrCreate(['user_id' => $user->id], ['balance' => 0]);
     }
 }

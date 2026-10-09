@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('agent_id')->constrained('users')->cascadeOnDelete();
             $table->foreignId('transaction_id')->constrained()->cascadeOnDelete();
- 
+
             $table->bigInteger('amount');
             $table->enum('status', ['pending', 'paid'])->default('pending');
             $table->timestamp('paid_at')->nullable();
@@ -31,3 +31,5 @@ return new class extends Migration
         Schema::dropIfExists('commissions');
     }
 };
+
+

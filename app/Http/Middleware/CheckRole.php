@@ -8,30 +8,51 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CheckRole
 {
-    /**
-     * Contoh pemakaian di route:
-     * ->middleware('role:superadmin')
-     * ->middleware('role:superadmin,agen')   // boleh lebih dari satu role
-     */
-    public function handle(Request $request, Closure $next, string ...$roles): Response
-    {
+    public function handle(
+        Request $request,
+        Closure $next,
+        string ...$roles
+    ): Response {
         $user = $request->user();
 
+        /*
+         * Belum login.
+         */
         if (! $user) {
             return response()->json([
-                'message' => 'Unauthenticated.',
+                'message' =>
+                'Unauthenticated.',
             ], 401);
         }
 
-        if ($user->status !== 'active') {
+        /*
+         * Akun harus aktif.
+         *
+         * Ini otomatis menolak:
+         *
+         * pending
+         * suspended
+         */
+        if (! $user->isActive()) {
             return response()->json([
-                'message' => 'Akun Anda sedang tidak aktif. Hubungi superadmin.',
+                'message' =>
+                'Akun Anda belum aktif atau '
+                    . 'sedang dinonaktifkan.',
             ], 403);
         }
 
-        if (! in_array($user->role, $roles, true)) {
+        /*
+         * Role harus sesuai.
+         */
+        if (! in_array(
+            $user->role,
+            $roles,
+            true
+        )) {
             return response()->json([
-                'message' => 'Anda tidak memiliki akses ke resource ini.',
+                'message' =>
+                'Anda tidak memiliki akses '
+                    . 'ke resource ini.',
             ], 403);
         }
 

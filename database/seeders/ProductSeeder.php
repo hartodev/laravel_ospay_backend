@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\Product;
+use App\Models\Products;
 use Illuminate\Database\Seeder;
 
 class ProductSeeder extends Seeder
@@ -55,7 +55,7 @@ class ProductSeeder extends Seeder
         ];
 
         foreach ($products as $product) {
-            Product::firstOrCreate(
+            Products::firstOrCreate(
                 ['product_code' => $product['product_code']],
                 $product + ['status' => 'active']
             );

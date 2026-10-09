@@ -14,17 +14,17 @@ return new class extends Migration
         Schema::create('deposits', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
- 
+
             $table->string('transaction_number')->unique(); // dikirim sebagai order_id ke Midtrans
             $table->bigInteger('amount');
- 
-            $table->string('payment_method')->default('bank_transfer');
-            $table->string('bank')->nullable();  // bca/bni/bri/permata, dst
-            $table->string('va_number')->nullable();
- 
+
+            $table->string('payment_method')->default('qris');
+            $table->text('qr_url')->nullable();
+
+
             $table->enum('status', ['pending', 'success', 'expired', 'cancelled'])->default('pending');
             $table->json('midtrans_response')->nullable();
- 
+
             $table->timestamp('paid_at')->nullable();
             $table->timestamps();
         });
