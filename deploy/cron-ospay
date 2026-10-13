@@ -1,0 +1,2 @@
+# Salin ke /etc/cron.d/ospay (chmod 644)
+* * * * * www-data cd /var/www/ospay && php artisan schedule:run >> /dev/null 2>&1

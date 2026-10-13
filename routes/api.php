@@ -14,6 +14,8 @@ use App\Http\Controllers\Api\WalletController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AppThemeController;
 use App\Http\Controllers\Api\BrandingController;
+use App\Http\Controllers\Api\IconPullController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -101,6 +103,7 @@ Route::post(
 Route::get('/app/theme', [AppThemeController::class, 'show']);
 Route::get('/app/branding', [BrandingController::class, 'show']);
 Route::get('/app/logo', [BrandingController::class, 'logo']);
+Route::get('/app/icons', IconPullController::class)->middleware('throttle:10,1');
 
 /*
 |--------------------------------------------------------------------------

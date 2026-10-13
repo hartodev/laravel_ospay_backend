@@ -12,8 +12,9 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Login & daftar pelanggan di subdomain toko, plus logout untuk semua host.
- * Toko (agen pemilik subdomain) sudah divalidasi & disediakan oleh
+ * Login & daftar pelanggan di halaman toko (ospay.test/tokoabc di mode path,
+ * tokoabc.ospay.test di mode subdomain), plus logout untuk semua alamat.
+ * Toko (agen pemilik kode toko) sudah divalidasi & disediakan oleh
  * middleware ResolveTenant lewat $request->attributes->get('tenant').
  */
 class TenantAuthController extends Controller
@@ -125,13 +126,19 @@ class TenantAuthController extends Controller
 
     public function logout(Request $request)
     {
-        $sub = Tenancy::subdomainFromHost($request->getHost());
+        // Mode path: kembali ke halaman login tokonya sendiri (akun agen /
+        // pelanggan toko), atau ke /login utama (superadmin & user umum).
+        // Mode subdomain: sesuai subdomain tempat logout dilakukan.
+        $user = $request->user();
+        $sub = Tenancy::isPathMode()
+            ? ($user ? Tenancy::storeOf($user)?->subdomain : null)
+            : Tenancy::subdomainFromHost($request->getHost());
 
         Auth::guard('web')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        // Subdomain toko -> /login toko. Domain utama -> portal.
+        // Halaman toko -> login toko. Domain utama -> portal.
         return redirect()->away(Tenancy::url($sub, '/login', $request));
     }
 }

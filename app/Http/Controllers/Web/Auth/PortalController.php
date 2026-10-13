@@ -16,27 +16,28 @@ use Illuminate\Validation\ValidationException;
 /**
  * Halaman login di domain utama (ospay.test/login).
  *
- * Satu form email + password untuk SEMUA peran, tanpa perlu tahu subdomain:
- *   - superadmin   -> sesi dibuat di domain utama -> dashboard
- *   - user umum    -> (role user TANPA agen) sesi di domain utama -> dashboard
- *   - agen         -> diarahkan ke subdomain tokonya -> dashboard toko
- *   - pelanggan toko -> (role user di bawah agen) diarahkan ke subdomain
- *                      toko agennya -> dashboard
+ * Satu form email + password untuk SEMUA peran, tanpa perlu tahu kode toko:
+ *   - superadmin     -> dashboard
+ *   - user umum      -> (role user TANPA agen) dashboard
+ *   - agen           -> dashboard toko (toko harus sudah disetujui)
+ *   - pelanggan toko -> (role user di bawah agen) dashboard toko agennya
  *
- * Karena cookie sesi bersifat per-host, perpindahan ke subdomain memakai
- * link serah-terima bertanda tangan (sekali pakai, 60 detik) yang diproses
- * TenantAuthController::sso().
+ * Mode "path"      : semua toko satu host, jadi sesi langsung dibuat di sini.
+ * Mode "subdomain" : cookie sesi bersifat per-host, jadi perpindahan ke
+ *                    subdomain memakai link serah-terima bertanda tangan
+ *                    (sekali pakai, 60 detik) yang diproses
+ *                    TenantAuthController::sso().
  *
  * Tidak ada tombol / halaman khusus superadmin: superadmin masuk lewat form
  * yang sama, jadi tidak ada pintu terpisah yang bisa ditebak orang lain.
  *
- * "Cari toko" (isi subdomain) tetap ada sebagai jalur opsional.
+ * "Cari toko" (isi kode toko) tetap ada sebagai jalur opsional.
  */
 class PortalController extends Controller
 {
     public function show(Request $request)
     {
-        // ?subdomain=xxx dipakai setelah daftar toko supaya kolom langsung terisi.
+        // ?subdomain=xxx (kode toko) dipakai setelah daftar toko supaya kolom langsung terisi.
         return view('auth.portal', [
             'subdomain' => $request->query('subdomain'),
         ]);
@@ -83,7 +84,7 @@ class PortalController extends Controller
             return redirect()->intended(route('dashboard'));
         }
 
-        // Agen / pelanggan toko: cari tokonya, lalu serahkan login ke subdomain toko.
+        // Agen / pelanggan toko: cari tokonya dan pastikan toko itu aktif.
         $store = $user->isAgent() ? $user : $user->parentAgent;
 
         if (! $store || blank($store->subdomain)) {
@@ -104,7 +105,15 @@ class PortalController extends Controller
             ]);
         }
 
-        // Token sekali pakai: link hanya berlaku 60 detik dan hanya sekali dibuka.
+        // Mode path: satu host, satu sesi. Cukup login di sini.
+        if (Tenancy::isPathMode()) {
+            Auth::guard('web')->login($user, $remember);
+            $request->session()->regenerate();
+
+            return redirect()->intended(route('dashboard'));
+        }
+
+        // Mode subdomain. Token sekali pakai: link hanya berlaku 60 detik dan hanya sekali dibuka.
         $nonce = Str::random(40);
         Cache::put('sso_login:' . $nonce, $user->id, now()->addSeconds(60));
 
@@ -158,13 +167,13 @@ class PortalController extends Controller
         return redirect()->route('dashboard')->with('success', 'Registrasi berhasil. Selamat datang!');
     }
 
-    /** Jalur opsional: isi subdomain toko -> diarahkan ke halaman login tokonya. */
+    /** Jalur opsional: isi kode toko -> diarahkan ke halaman login tokonya. */
     public function redirectToStore(Request $request)
     {
         $request->validate([
             'subdomain' => ['required', 'string', 'max:120'],
         ], [
-            'subdomain.required' => 'Isi subdomain toko Anda.',
+            'subdomain.required' => 'Isi kode toko Anda.',
         ]);
 
         $sub = $this->normalize($request->input('subdomain'));
@@ -172,7 +181,7 @@ class PortalController extends Controller
 
         if (! $store) {
             return back()->withInput()
-                ->withErrors(['subdomain' => 'Toko dengan subdomain itu tidak ditemukan.']);
+                ->withErrors(['subdomain' => 'Toko dengan kode itu tidak ditemukan.']);
         }
 
         if ($store->isPending()) {
@@ -188,11 +197,22 @@ class PortalController extends Controller
         return redirect()->away(Tenancy::url($store->subdomain, '/login', $request));
     }
 
-    /** Terima "tokoabc", "tokoabc.ospay.test", atau "http://tokoabc.ospay.test:8002". */
+    /**
+     * Terima "tokoabc", "ospay.test/tokoabc", "http://ospay.test:8002/tokoabc/login"
+     * (mode path) atau "tokoabc.ospay.test" (mode subdomain).
+     */
     private function normalize(string $input): string
     {
         $value = strtolower(trim($input));
         $value = preg_replace('#^https?://#', '', $value);
+
+        if (Tenancy::isPathMode()) {
+            // Buang "ospay.test[:port]/" di depan, lalu ambil segmen pertama saja.
+            $value = preg_replace('#^' . preg_quote(Tenancy::mainDomain(), '#') . '(:\d+)?/#', '', $value);
+
+            return trim(explode('/', ltrim($value, '/'))[0]);
+        }
+
         $value = explode('/', $value)[0];
         $value = preg_replace('/:\d+$/', '', $value);
 

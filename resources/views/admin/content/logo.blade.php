@@ -45,6 +45,84 @@
             @csrf @method('DELETE')
         </form>
 
+        @php $canPack = $iconSupported && ($hasLogo || count($customIcons) > 0); @endphp
+        <div class="card p-5 sm:p-6 space-y-4">
+            <div>
+                <div class="font-semibold">Ikon aplikasi Android (mipmap)</div>
+                <p class="text-xs text-slate-500">
+                    Ganti ikon tiap ukuran langsung dari sini. Ukuran yang tidak diganti dibuat otomatis dari logo di atas.
+                    Ikon launcher tertanam di APK, jadi setelah ikon diubah, unduh paketnya, taruh di Android Studio, lalu build ulang.
+                </p>
+            </div>
+
+            @if (! $iconSupported)
+                <p class="text-xs font-medium text-red-600">Ekstensi PHP gd dan zip belum aktif di server, jadi ikon belum bisa diproses.</p>
+            @endif
+
+            <div class="divide-y divide-slate-100">
+                @foreach ($iconSizes as $folder => $px)
+                    @php $isCustom = isset($customIcons[$folder]); @endphp
+                    <div class="flex flex-wrap items-center gap-3 py-3">
+                        <div class="flex size-16 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50">
+                            @if ($isCustom || $hasLogo)
+                                <img src="{{ route('admin.content.logo.icons', ['d' => $folder, 'v' => $iconVersion.'-'.$version]) }}"
+                                     alt="{{ $folder }}" class="max-h-14 max-w-14" style="width: {{ min($px, 56) }}px; height: {{ min($px, 56) }}px">
+                            @else
+                                <span class="text-[10px] text-slate-400">kosong</span>
+                            @endif
+                        </div>
+                        <div class="min-w-[7rem]">
+                            <div class="text-sm font-semibold">{{ str_replace('mipmap-', '', $folder) }} <span class="font-mono text-xs font-normal text-slate-500">{{ $px }} px</span></div>
+                            <div class="text-xs {{ $isCustom ? 'text-emerald-600' : 'text-slate-500' }}">
+                                {{ $isCustom ? 'Ikon kustom' : ($hasLogo ? 'Otomatis dari logo' : 'Belum ada') }}
+                            </div>
+                        </div>
+                        <form method="POST" action="{{ route('admin.content.logo.update') }}" enctype="multipart/form-data"
+                              class="flex flex-1 flex-wrap items-center gap-2">
+                            @csrf
+                            <input type="hidden" name="icon_density" value="{{ $folder }}">
+                            <input name="icon" type="file" required accept="image/png,image/jpeg,image/webp"
+                                   class="field !py-1.5 text-xs min-w-0 flex-1">
+                            <button class="btn-primary !px-3 !py-1.5 text-xs" @disabled(! $iconSupported)>Ganti</button>
+                        </form>
+                        @if ($isCustom)
+                            <form method="POST" action="{{ route('admin.content.logo.reset') }}"
+                                  onsubmit="return confirm('Hapus ikon kustom ini?')">
+                                @csrf @method('DELETE')
+                                <input type="hidden" name="icon_density" value="{{ $folder }}">
+                                <button class="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">Hapus</button>
+                            </form>
+                        @endif
+                    </div>
+                @endforeach
+            </div>
+            @error('icon')<p class="text-xs font-medium text-red-600">{{ $message }}</p>@enderror
+
+            <div class="flex flex-wrap items-center gap-3">
+                <a href="{{ $canPack ? route('admin.content.logo.icons') : '#' }}"
+                   @if (! $canPack) aria-disabled="true" onclick="return false" @endif
+                   class="btn-primary inline-block {{ $canPack ? '' : 'opacity-40 cursor-not-allowed' }}">
+                    Unduh paket ikon Android (ZIP)
+                </a>
+                @if (count($customIcons) > 0)
+                    <form method="POST" action="{{ route('admin.content.logo.reset') }}"
+                          onsubmit="return confirm('Hapus semua ikon kustom?')">
+                        @csrf @method('DELETE')
+                        <input type="hidden" name="icon_density" value="all">
+                        <button class="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">Hapus semua ikon kustom</button>
+                    </form>
+                @endif
+            </div>
+            <p class="text-xs text-slate-500">
+                Salin isi folder <span class="font-mono">res/</span> ke <span class="font-mono">android/app/src/main/res</span>
+                (atau <span class="font-mono">src/dev/res</span> dan <span class="font-mono">src/prod/res</span> kalau pakai flavor), timpa file yang sama, lalu build ulang.
+            </p>
+            <p class="text-xs text-slate-500">
+                Kalau Chrome menampilkan "Download tidak aman diblokir", itu karena alamatnya <span class="font-mono">http://</span>.
+                Klik <b>Tetap Download</b>. Di server production yang memakai https peringatan ini tidak muncul.
+            </p>
+        </div>
+
         <p class="text-xs text-slate-500">
             Versi logo saat ini: <span class="font-mono">{{ $version }}</span>.
             Nomor ini naik setiap logo diganti, dan dipakai aplikasi untuk tahu ada logo baru.

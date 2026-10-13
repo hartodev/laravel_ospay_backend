@@ -5,15 +5,24 @@ namespace App\Http\Middleware;
 use App\Support\Tenancy;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Membaca subdomain dari host dan mencari tokonya.
+ * Membaca kode toko dari alamat request dan mencari tokonya.
  *
- * - Host domain utama / IP / localhost  -> lanjut tanpa toko.
- * - Host subdomain                       -> toko HARUS ada dan aktif.
+ * Mode "path"      : kode toko = segmen pertama URL (ospay.test/tokoabc/login),
+ *                    datang dari parameter route {tenant}.
+ * Mode "subdomain" : kode toko = subdomain host (tokoabc.ospay.test).
+ *
+ * - Alamat domain utama / IP / localhost -> lanjut tanpa toko.
+ * - Alamat toko                           -> toko HARUS ada dan aktif.
+ *
+ * Halaman setelah login (dashboard dst.) tidak membawa kode toko di URL.
+ * Di mode path, toko untuk halaman itu diambil dari AKUN yang login
+ * (agen = dirinya sendiri, pelanggan = agen induknya).
  *
  * Toko yang ditemukan tersedia lewat $request->attributes->get('tenant')
  * dan variabel $tenant di semua view.
@@ -22,7 +31,17 @@ class ResolveTenant
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $sub = Tenancy::subdomainFromHost($request->getHost());
+        if (Tenancy::isPathMode()) {
+            $routeSlug = $request->route('tenant');
+            $sub = is_string($routeSlug) && $routeSlug !== '' ? strtolower($routeSlug) : null;
+
+            if ($sub !== null) {
+                // Dipakai Tenancy::currentSlug() / loginUrl() di middleware lain.
+                $request->attributes->set('tenant_slug', $sub);
+            }
+        } else {
+            $sub = Tenancy::subdomainFromHost($request->getHost());
+        }
 
         // Aplikasi mobile tidak punya subdomain: toko dikirim lewat header X-Tenant.
         if ($sub === null && $request->expectsJson()) {
@@ -34,6 +53,8 @@ class ResolveTenant
         }
 
         if ($sub === null) {
+            $this->shareStoreOfLoggedInUser($request);
+
             return $next($request);
         }
 
@@ -60,6 +81,30 @@ class ResolveTenant
         View::share('tenant', $store);
 
         return $next($request);
+    }
+
+    /**
+     * Mode path, halaman setelah login: URL tidak membawa kode toko, jadi toko
+     * diambil dari akun yang login supaya nama/logo toko tampil di layout.
+     * Toko yang tidak aktif sengaja TIDAK dipasang; EnsureHostMatchesUser lalu
+     * mengeluarkan akunnya.
+     */
+    private function shareStoreOfLoggedInUser(Request $request): void
+    {
+        if (! Tenancy::isPathMode() || $request->expectsJson()) {
+            return;
+        }
+
+        $user = Auth::guard('web')->user();
+        $store = $user ? Tenancy::storeOf($user) : null;
+
+        if (! $store || ! $store->isActive()) {
+            return;
+        }
+
+        $request->attributes->set('tenant', $store);
+        app()->instance('tenant', $store);
+        View::share('tenant', $store);
     }
 
     private function unavailable(string $reason, string $sub, int $status): Response

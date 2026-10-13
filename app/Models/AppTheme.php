@@ -43,7 +43,9 @@ class AppTheme extends Model
     /** Tema aktif (satu baris saja). Dibuat otomatis dengan warna bawaan. */
     public static function current(): self
     {
-        return static::query()->first() ?? static::query()->create([]);
+        // refresh(): ambil nilai default dari database; tanpa ini atribut warna
+        // null pada pembuatan pertama dan halaman web error 500.
+        return static::query()->first() ?? static::query()->create([])->refresh();
     }
 
     /** Bentuk JSON yang dibaca aplikasi Flutter. */

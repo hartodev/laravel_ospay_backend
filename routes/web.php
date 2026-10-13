@@ -17,6 +17,7 @@ use App\Http\Controllers\Web\ProfileController;
 use App\Http\Controllers\Web\TransactionController;
 use App\Http\Controllers\Web\WalletController;
 use App\Http\Middleware\WebCheckRole;
+use App\Support\Tenancy;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Web\AppThemeController as WebAppThemeController;
 
@@ -36,16 +37,21 @@ use App\Http\Controllers\Web\AppThemeController as WebAppThemeController;
 
 /*
 |--------------------------------------------------------------------------
-| MULTI-TOKO (subdomain)
+| MULTI-TOKO (TENANCY_MODE = path | subdomain)
 |--------------------------------------------------------------------------
 |
 | Domain utama  (TENANCY_MAIN_DOMAIN)  : landing, beli tanpa login, portal
-|                                         "cari toko", daftar toko, login superadmin.
-| Subdomain     ({toko}.domain-utama)  : login & daftar pelanggan satu toko.
-| Dashboard dst : tanpa batas domain; ResolveTenant + EnsureHostMatchesUser
-|                 memastikan akun hanya bisa masuk ke tokonya sendiri.
+|                                         login, daftar toko, login superadmin.
+| Halaman toko  : mode path      -> domain-utama/{toko}/login, /register
+|                 mode subdomain -> {toko}.domain-utama/login, /register
+| Dashboard dst : tanpa kode toko di URL. Hak akses ditentukan oleh akun
+|                 (ResolveTenant + EnsureHostMatchesUser), bukan oleh URL.
+|
+| Route halaman toko mode path didaftarkan PALING BAWAH file ini, supaya
+| route tetap seperti /login, /dashboard, /admin/... selalu menang.
 |
 */
+
 $mainDomain = config('tenancy.main_domain');
 
 // Alamat lama panel konten; panel kini ada di dalam dashboard superadmin.
@@ -111,29 +117,31 @@ Route::domain($mainDomain)->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| SUBDOMAIN TOKO  ({toko}.domain-utama)
+| SUBDOMAIN TOKO  ({toko}.domain-utama)  -- hanya TENANCY_MODE=subdomain
 |--------------------------------------------------------------------------
 */
-Route::domain('{tenant}.' . $mainDomain)->middleware('tenant')->group(function () {
+if (! Tenancy::isPathMode()) {
+    Route::domain('{tenant}.' . $mainDomain)->middleware('tenant')->group(function () {
 
-    // Serah-terima login dari domain utama (link bertanda tangan, sekali pakai).
-    Route::get('/sso', [TenantAuthController::class, 'sso'])
-        ->middleware('signed')->name('tenant.sso');
+        // Serah-terima login dari domain utama (link bertanda tangan, sekali pakai).
+        Route::get('/sso', [TenantAuthController::class, 'sso'])
+            ->middleware('signed')->name('tenant.sso');
 
-    Route::get('/', fn () => auth()->check()
-        ? redirect()->route('dashboard')
-        : redirect()->route('tenant.login'))->name('tenant.home');
+        Route::get('/', fn() => auth()->check()
+            ? redirect()->route('dashboard')
+            : redirect()->route('tenant.login'))->name('tenant.home');
 
-    Route::middleware('guest')->group(function () {
-        Route::get('/login', [TenantAuthController::class, 'showLogin'])->name('tenant.login');
-        Route::post('/login', [TenantAuthController::class, 'login'])
-            ->middleware('throttle:login')->name('tenant.login.store');
+        Route::middleware('guest')->group(function () {
+            Route::get('/login', [TenantAuthController::class, 'showLogin'])->name('tenant.login');
+            Route::post('/login', [TenantAuthController::class, 'login'])
+                ->middleware('throttle:login')->name('tenant.login.store');
 
-        Route::get('/register', [TenantAuthController::class, 'showRegister'])->name('tenant.register');
-        Route::post('/register', [TenantAuthController::class, 'register'])
-            ->middleware('throttle:register')->name('tenant.register.store');
+            Route::get('/register', [TenantAuthController::class, 'showRegister'])->name('tenant.register');
+            Route::post('/register', [TenantAuthController::class, 'register'])
+                ->middleware('throttle:register')->name('tenant.register.store');
+        });
     });
-});
+}
 
 /*
 |--------------------------------------------------------------------------
@@ -230,6 +238,42 @@ Route::middleware(['tenant', 'auth:sanctum', 'tenant.member', WebCheckRole::clas
             Route::get('/logo', [AdminBrandingController::class, 'edit'])->name('logo');
             Route::post('/logo', [AdminBrandingController::class, 'update'])->name('logo.update');
             Route::delete('/logo', [AdminBrandingController::class, 'reset'])->name('logo.reset');
+            Route::get('/logo/ikon-android', [AdminBrandingController::class, 'downloadIcons'])->name('logo.icons'); // <- tambahkan ini
         });
     });
 });
+
+/*
+|--------------------------------------------------------------------------
+| HALAMAN TOKO MODE PATH  (domain-utama/{toko}/...)  -- WAJIB PALING BAWAH
+|--------------------------------------------------------------------------
+|
+| Nama route sama dengan versi subdomain (tenant.login, dst.), jadi view &
+| controller tidak perlu tahu mode yang dipakai. Alur:
+|   daftar toko (pending) -> superadmin approve -> /{toko} aktif.
+| Toko yang belum ada / pending / nonaktif ditangani middleware "tenant"
+| (halaman "toko belum bisa dibuka").
+|
+*/
+if (Tenancy::isPathMode()) {
+    Route::domain($mainDomain)
+        ->prefix('{tenant}')
+        ->where(['tenant' => Tenancy::routePattern()])
+        ->middleware('tenant')
+        ->group(function () {
+
+            Route::get('/', fn() => auth()->check()
+                ? redirect()->route('dashboard')
+                : redirect()->route('tenant.login'))->name('tenant.home');
+
+            Route::middleware('guest')->group(function () {
+                Route::get('/login', [TenantAuthController::class, 'showLogin'])->name('tenant.login');
+                Route::post('/login', [TenantAuthController::class, 'login'])
+                    ->middleware('throttle:login')->name('tenant.login.store');
+
+                Route::get('/register', [TenantAuthController::class, 'showRegister'])->name('tenant.register');
+                Route::post('/register', [TenantAuthController::class, 'register'])
+                    ->middleware('throttle:register')->name('tenant.register.store');
+            });
+        });
+}

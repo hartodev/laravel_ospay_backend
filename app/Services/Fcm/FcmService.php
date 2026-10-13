@@ -126,7 +126,7 @@ class FcmService
             ?? $response->json('error.status');
 
         // Token sudah tidak berlaku (app dihapus / token diganti) -> bersihkan.
-        if (in_array($errorCode, ['UNREGISTERED', 'NOT_FOUND'], true)) {
+        if (in_array($errorCode, ['UNREGISTERED', 'NOT_FOUND', 'SENDER_ID_MISMATCH'], true)) {
             DeviceToken::where('token', $token)->delete();
         }
 

@@ -2,7 +2,7 @@
 @section('title', 'Dashboard')
 
 @section('content')
-{{-- Alamat toko (subdomain) agen --}}
+{{-- Alamat toko agen --}}
 @if (auth()->user()->subdomain)
     <div class="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-brand-100 bg-brand-50 px-4 py-3 text-sm text-brand-800">
         <span>Alamat toko Anda: <strong>{{ auth()->user()->storeHost() }}</strong></span>

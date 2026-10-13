@@ -9,4 +9,8 @@ return [
     'is_production' => env('MIDTRANS_PRODUCTION', false),
     'is_sanitized'  => true,
     'is_3ds'        => env('MIDTRANS_IS_3DS', false),
+
+    // Override Notification URL per transaksi (dibaca App\Services\Midtrans\Midtrans).
+    // Production: https://domainmu.id/api/callback/midtrans . Kosongkan di lokal/dev.
+    'notification_url' => env('MIDTRANS_NOTIFICATION_URL'),
 ];

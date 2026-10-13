@@ -23,7 +23,7 @@ class TransactionNotificationObserver
             $transaction->wasChanged('status')
             && $transaction->status === 'success'
         ) {
-            SendTransactionSuccessPush::dispatch($transaction->id)->afterResponse();
+            SendTransactionSuccessPush::dispatch($transaction->id);
         }
     }
 }

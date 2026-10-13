@@ -7,14 +7,64 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 /**
- * Helper multi-toko berbasis subdomain.
- * Toko = akun agen (users.role = 'agen') yang punya kolom subdomain.
+ * Helper multi-toko (mode "path" atau "subdomain", lihat config/tenancy.php).
+ * Toko = akun agen (users.role = 'agen') yang punya kode toko di kolom
+ * users.subdomain.
  */
 class Tenancy
 {
     public static function mainDomain(): string
     {
         return strtolower((string) config('tenancy.main_domain'));
+    }
+
+    /** Mode "path": toko di ospay.test/tokoabc (bukan tokoabc.ospay.test). */
+    public static function isPathMode(): bool
+    {
+        return config('tenancy.mode', 'path') !== 'subdomain';
+    }
+
+    /**
+     * Kode toko yang ada di ALAMAT request ini (bukan dari akun yang login).
+     * Mode path: segmen pertama URL; mode subdomain: subdomain dari host.
+     * Null = domain utama.
+     */
+    public static function currentSlug(Request $request): ?string
+    {
+        if (self::isPathMode()) {
+            $slug = $request->attributes->get('tenant_slug');
+
+            return is_string($slug) && $slug !== '' ? $slug : null;
+        }
+
+        return self::subdomainFromHost($request->getHost());
+    }
+
+    /** Toko dari sebuah akun: agen = dirinya sendiri, pelanggan = agen induknya. */
+    public static function storeOf(User $user): ?User
+    {
+        if ($user->role === 'agen') {
+            return $user;
+        }
+
+        return $user->role === 'user' && $user->parent_agent_id ? $user->parentAgent : null;
+    }
+
+    /** Alamat toko tanpa skema: "ospay.test/tokoabc" atau "tokoabc.ospay.test". */
+    public static function hostFor(string $slug): string
+    {
+        return self::isPathMode()
+            ? self::mainDomain() . '/' . $slug
+            : $slug . '.' . self::mainDomain();
+    }
+
+    /** Pola untuk Route::where('tenant', ...) (tanpa anchor ^ $). */
+    public static function routePattern(): string
+    {
+        $min = max(2, (int) config('tenancy.min_length', 3)) - 2;
+        $max = max($min + 1, (int) config('tenancy.max_length', 30) - 2);
+
+        return '[a-z0-9][a-z0-9-]{' . $min . ',' . $max . '}[a-z0-9]';
     }
 
     /**
@@ -41,8 +91,11 @@ class Tenancy
     }
 
     /**
-     * URL absolut ke domain utama / subdomain, ikut scheme & port request
+     * URL absolut ke domain utama / halaman toko, ikut scheme & port request
      * (penting saat dev memakai php artisan serve --port=xxxx).
+     *
+     * Mode path      : url('tokoabc', '/login') -> https://ospay.test/tokoabc/login
+     * Mode subdomain : url('tokoabc', '/login') -> https://tokoabc.ospay.test/login
      */
     public static function url(?string $sub, string $path = '/', ?Request $request = null): string
     {
@@ -50,18 +103,26 @@ class Tenancy
 
         $port = (int) $request->getPort();
         $port = in_array($port, [80, 443], true) ? '' : ':' . $port;
+        $path = ltrim($path, '/');
+
+        if (self::isPathMode()) {
+            $prefix = $sub ? $sub . '/' : '';
+            $url = $request->getScheme() . '://' . self::mainDomain() . $port . '/' . $prefix . $path;
+
+            return $sub ? rtrim($url, '/') : $url;
+        }
+
         $host = $sub ? $sub . '.' . self::mainDomain() : self::mainDomain();
 
-        return $request->getScheme() . '://' . $host . $port . '/' . ltrim($path, '/');
+        return $request->getScheme() . '://' . $host . $port . '/' . $path;
     }
 
-    /** URL halaman login yang sesuai host request saat ini. */
+    /** URL halaman login yang sesuai alamat request saat ini. */
     public static function loginUrl(?Request $request = null): string
     {
         $request ??= request();
-        $sub = self::subdomainFromHost($request->getHost());
 
-        return self::url($sub, '/login', $request);
+        return self::url(self::currentSlug($request), '/login', $request);
     }
 
     public static function findStore(string $sub): ?User

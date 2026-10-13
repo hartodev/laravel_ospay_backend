@@ -25,20 +25,26 @@
     </button>
 </form>
 
-{{-- Jalur opsional: masuk lewat halaman toko (isi subdomain dulu). --}}
+{{-- Jalur opsional: masuk lewat halaman toko (isi kode toko dulu). --}}
 <details class="mt-6 rounded-2xl border border-slate-200 bg-slate-50/60 p-4" @if(!empty($subdomain) || $errors->has('subdomain')) open @endif>
     <summary class="cursor-pointer text-sm font-semibold text-slate-600">Punya link toko? Masuk lewat halaman toko</summary>
 
     <form method="POST" action="{{ route('login.go') }}" class="mt-4 space-y-3">
         @csrf
         <div>
-            <label for="subdomain" class="label">Subdomain toko</label>
+            <label for="subdomain" class="label">Kode toko</label>
+            @php $pathMode = \App\Support\Tenancy::isPathMode(); @endphp
             <div class="flex items-center overflow-hidden rounded-2xl border bg-white transition focus-within:border-brand-500 focus-within:ring-4 focus-within:ring-brand-500/15 @error('subdomain') border-red-400 @else border-slate-200 @enderror">
+                @if ($pathMode)
+                    <span class="whitespace-nowrap bg-slate-50 px-3 py-3.5 text-xs font-semibold text-slate-500">{{ config('tenancy.main_domain') }}/</span>
+                @endif
                 <input id="subdomain" name="subdomain" type="text" required autocomplete="off"
                        autocapitalize="none" spellcheck="false" placeholder="contoh: toko-abc"
                        value="{{ old('subdomain', $subdomain ?? '') }}"
                        class="h-12 w-full border-0 bg-transparent px-4 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-0">
-                <span class="whitespace-nowrap bg-slate-50 px-3 py-3.5 text-xs font-semibold text-slate-500">.{{ config('tenancy.main_domain') }}</span>
+                @unless ($pathMode)
+                    <span class="whitespace-nowrap bg-slate-50 px-3 py-3.5 text-xs font-semibold text-slate-500">.{{ config('tenancy.main_domain') }}</span>
+                @endunless
             </div>
             @error('subdomain')<p class="mt-1.5 text-xs font-medium text-red-600">{{ $message }}</p>@enderror
         </div>

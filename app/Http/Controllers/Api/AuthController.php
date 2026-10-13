@@ -155,9 +155,9 @@ class AuthController extends Controller
      *     ↓
      * wallet dibuat
      *
-     * Agen mendapat subdomain toko sendiri. Boleh diisi saat daftar
-     * (field "subdomain"); kalau kosong dibuat otomatis dari nama.
-     * Subdomain baru bisa dipakai setelah agen disetujui (active).
+     * Agen mendapat kode toko sendiri (alamat: domain-utama/{kode} di mode
+     * path). Boleh diisi saat daftar (field "subdomain"); kalau kosong dibuat
+     * otomatis dari nama. Kode baru bisa dipakai setelah agen disetujui (active).
      *
      * Pendaftaran agen hanya lewat situs utama, bukan lewat toko agen lain.
      */
@@ -217,13 +217,13 @@ class AuthController extends Controller
             ],
         ], [
             'subdomain.regex' =>
-            'Subdomain hanya boleh huruf kecil, angka, dan tanda minus.',
+            'Kode toko hanya boleh huruf kecil, angka, dan tanda minus.',
 
             'subdomain.not_in' =>
-            'Subdomain ini tidak boleh dipakai.',
+            'Kode toko ini tidak boleh dipakai.',
 
             'subdomain.unique' =>
-            'Subdomain sudah dipakai agen lain.',
+            'Kode toko sudah dipakai agen lain.',
         ]);
 
         $user = User::create([
@@ -241,8 +241,8 @@ class AuthController extends Controller
 
             'status' => 'pending',
 
-            'subdomain' => $data['subdomain']
-                ?? User::generateSubdomain($data['name']),
+            // Kosong -> dibuat otomatis dari nama oleh hook creating() di model User.
+            'subdomain' => $data['subdomain'] ?? null,
         ]);
 
         /*
@@ -256,8 +256,7 @@ class AuthController extends Controller
             'Pendaftaran agen berhasil. '
                 . 'Akun menunggu persetujuan superadmin. '
                 . 'Alamat toko Anda nanti: '
-                . $user->subdomain . '.'
-                . config('tenancy.main_domain'),
+                . $user->storeHost(),
 
             'user' => $user,
         ], 201);

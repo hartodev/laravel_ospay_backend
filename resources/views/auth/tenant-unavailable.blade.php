@@ -15,11 +15,11 @@
 
 @section('subtitle')
     @if ($reason === 'pending')
-        Toko <strong>{{ $subdomain }}.{{ config('tenancy.main_domain') }}</strong> masih menunggu persetujuan superadmin.
+        Toko <strong>{{ \App\Support\Tenancy::hostFor($subdomain) }}</strong> masih menunggu persetujuan superadmin.
     @elseif ($reason === 'suspended')
-        Toko <strong>{{ $subdomain }}.{{ config('tenancy.main_domain') }}</strong> sedang dinonaktifkan. Hubungi superadmin untuk informasi lebih lanjut.
+        Toko <strong>{{ \App\Support\Tenancy::hostFor($subdomain) }}</strong> sedang dinonaktifkan. Hubungi superadmin untuk informasi lebih lanjut.
     @else
-        Toko dengan alamat <strong>{{ $subdomain }}.{{ config('tenancy.main_domain') }}</strong> tidak ditemukan.
+        Toko dengan alamat <strong>{{ \App\Support\Tenancy::hostFor($subdomain) }}</strong> tidak ditemukan.
     @endif
 @endsection
 

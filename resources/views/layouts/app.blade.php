@@ -21,6 +21,7 @@
                 ['Produk & Harga', 'admin.products.index', 'admin.products.*', 'tag'],
                 ['Aturan Komisi', 'admin.commissions.index', 'admin.commissions.*', 'coins'],
                 ['Konten Aplikasi', 'admin.content.index', 'admin.content.*', 'globe'],
+                ['Logo & Ikon', 'admin.content.logo', 'admin.content.logo*', 'image'],
                 ['Tema Warna', 'admin.theme.edit', 'admin.theme.*', 'palette'],
             ],
             $u->isAgent() => [
@@ -53,6 +54,7 @@
                 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0 0c2.5-2.4 4-5.6 4-9s-1.5-6.6-4-9m0 18c-2.5-2.4-4-5.6-4-9s1.5-6.6 4-9M3 12h18',
             'coins' =>
                 'M12 8c4.4 0 8-1.3 8-3s-3.6-3-8-3-8 1.3-8 3 3.6 3 8 3Zm8 0v4c0 1.7-3.6 3-8 3s-8-1.3-8-3V8m16 4v4c0 1.7-3.6 3-8 3s-8-1.3-8-3v-4',
+            'image' => 'M4 5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5Zm0 11 4.5-4.5a1 1 0 0 1 1.4 0L15 17m-2-2 1.6-1.6a1 1 0 0 1 1.4 0L20 16.5M9 8.5h.01',
             'palette' =>
                 'M13.5 6.5h.01M17.5 10.5h.01M8.5 7.5h.01M6.5 12.5h.01M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.5-.7 1.5-1.5 0-.4-.1-.7-.4-1-.2-.3-.4-.6-.4-1 0-.8.7-1.5 1.5-1.5H16c3.3 0 6-2.7 6-6 0-4.9-4.5-9-10-9Z',
         ];
@@ -69,7 +71,8 @@
 
         <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1 text-sm">
             @foreach ($menu as [$label, $route, $pattern, $icon])
-                @php $active = request()->routeIs($pattern); @endphp
+                @php $active = request()->routeIs($pattern)
+                    && ! ($route === 'admin.content.index' && request()->routeIs('admin.content.logo*')); @endphp
                 <a href="{{ route($route) }}" @if ($active) aria-current="page" @endif
                     class="group flex items-center gap-3 rounded-2xl px-3 py-2.5 font-medium transition-colors {{ $active ? 'bg-brand-500 text-white shadow-lg shadow-brand-500/30' : 'hover:bg-white/5 hover:text-white' }}">
                     <svg class="size-5 shrink-0 {{ $active ? 'text-white' : 'text-blue-200/60 group-hover:text-blue-100' }}"
@@ -117,7 +120,7 @@
         <nav class="flex gap-1 overflow-x-auto px-3 pb-2 text-sm">
             @foreach ($menu as [$label, $route, $pattern, $icon])
                 <a href="{{ route($route) }}"
-                    class="whitespace-nowrap rounded-full px-3.5 py-1.5 font-medium {{ request()->routeIs($pattern) ? 'bg-brand-500 text-white' : 'text-slate-300 hover:bg-white/10' }}">{{ $label }}</a>
+                    class="whitespace-nowrap rounded-full px-3.5 py-1.5 font-medium {{ request()->routeIs($pattern) && ! ($route === 'admin.content.index' && request()->routeIs('admin.content.logo*')) ? 'bg-brand-500 text-white' : 'text-slate-300 hover:bg-white/10' }}">{{ $label }}</a>
             @endforeach
         </nav>
     </header>
@@ -151,7 +154,7 @@
         aria-label="Navigasi utama">
         <div class="mx-auto grid max-w-md grid-cols-3">
             @foreach ($tabs as [$label, $route, $pattern, $icon])
-                @php $on = request()->routeIs($pattern); @endphp
+                @php $on = request()->routeIs($pattern) && ! ($route === 'admin.content.index' && request()->routeIs('admin.content.logo*')); @endphp
                 <a href="{{ route($route) }}" @if ($on) aria-current="page" @endif
                     class="flex flex-col items-center gap-1 py-2.5 text-xs font-semibold {{ $on ? 'text-brand-600' : 'text-slate-400' }}">
                     <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"

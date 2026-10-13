@@ -12,8 +12,12 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Akun contoh (@ppob.test) hanya untuk lokal/staging, TIDAK PERNAH di production.
+        if (! app()->environment('production')) {
+            $this->call(UserSeeder::class);
+        }
+
         $this->call([
-            UserSeeder::class,
             AppContentSeeder::class,
             // ProductSeeder::class,
         ]);

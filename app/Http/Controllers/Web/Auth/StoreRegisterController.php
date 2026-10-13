@@ -10,8 +10,11 @@ use Illuminate\Support\Facades\Hash;
 
 /**
  * Daftar toko baru (= daftar agen) di domain utama.
- * Akun agen berstatus pending sampai disetujui superadmin; selama pending,
- * subdomain tokonya belum bisa dipakai.
+ *
+ * Alur: daftar (status pending) -> superadmin approve -> alamat toko aktif
+ * (mode path: domain-utama/{kode}). Selama pending, alamat tokonya belum bisa
+ * dibuka (halaman "toko belum aktif"). Field & kolom tetap bernama "subdomain"
+ * supaya kompatibel dengan API/mobile; artinya = kode toko.
  */
 class StoreRegisterController extends Controller
 {
@@ -36,13 +39,13 @@ class StoreRegisterController extends Controller
                 'string',
                 function ($attribute, $value, $fail) use ($min, $max) {
                     if (strlen($value) < $min || strlen($value) > $max) {
-                        return $fail("Subdomain harus {$min}-{$max} karakter.");
+                        return $fail("Kode toko harus {$min}-{$max} karakter.");
                     }
                     if (! preg_match(Tenancy::pattern(), $value)) {
-                        return $fail('Subdomain hanya boleh huruf kecil, angka, dan tanda minus (tidak diawali/diakhiri minus).');
+                        return $fail('Kode toko hanya boleh huruf kecil, angka, dan tanda minus (tidak diawali/diakhiri minus).');
                     }
                     if (Tenancy::isReserved($value)) {
-                        return $fail('Subdomain ini tidak boleh digunakan, silakan pilih yang lain.');
+                        return $fail('Kode toko ini tidak boleh digunakan, silakan pilih yang lain.');
                     }
                 },
                 'unique:users,subdomain',
@@ -52,7 +55,7 @@ class StoreRegisterController extends Controller
             'phone' => ['required', 'string', 'max:20'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
         ], [
-            'subdomain.unique' => 'Subdomain sudah dipakai toko lain.',
+            'subdomain.unique' => 'Kode toko sudah dipakai toko lain.',
             'email.unique' => 'Email ini sudah terdaftar.',
         ]);
 

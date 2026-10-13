@@ -75,10 +75,10 @@ class User extends Authenticatable
         return $this->store_name ?: $this->name;
     }
 
-    /** Alamat toko tanpa skema, mis. "tokoabc.ospay.test". */
+    /** Alamat toko tanpa skema, mis. "ospay.test/tokoabc" (mode path) atau "tokoabc.ospay.test". */
     public function storeHost(): ?string
     {
-        return $this->subdomain ? $this->subdomain . '.' . Tenancy::mainDomain() : null;
+        return $this->subdomain ? Tenancy::hostFor($this->subdomain) : null;
     }
 
     /*

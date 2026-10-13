@@ -73,17 +73,20 @@ class CallbackController extends Controller
                 );
             }
 
-            Log::warning(
-                'Midtrans transaction or deposit not found',
+            // Akun Midtrans bisa dipakai aplikasi lain. Notifikasi yang
+            // order_id-nya bukan milik OSPay diabaikan, tapi dijawab 200
+            // supaya Midtrans tidak mengirim ulang.
+            Log::info(
+                'Midtrans callback diabaikan: order_id bukan milik OSPay',
                 [
                     'order_id' => $orderId,
                 ]
             );
 
             return response()->json([
-                'success' => false,
-                'message' => 'Transaction not found.',
-            ], 404);
+                'success' => true,
+                'message' => 'Ignored: order not found in this application.',
+            ]);
         }
 
         $status = $callback->transactionStatus();

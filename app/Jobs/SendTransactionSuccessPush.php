@@ -34,15 +34,13 @@ class SendTransactionSuccessPush implements ShouldQueue
             $fcm->sendToUser(
                 (int) $transaction->user_id,
                 'Transaksi Berhasil',
-                "{$productName} ke {$transaction->customer_id} sebesar Rp {$amount} berhasil.",
+                "{$productName} sebesar Rp {$amount} berhasil.",
                 [
                     'type' => 'transaction_success',
                     'transaction_id' => $transaction->id,
                     'ref_id' => $transaction->ref_id,
                     'product_name' => $productName,
-                    'customer_id' => $transaction->customer_id,
                     'amount' => (int) $transaction->sell_price,
-                    'sn' => $transaction->sn,
                 ]
             );
         } catch (Throwable $e) {
